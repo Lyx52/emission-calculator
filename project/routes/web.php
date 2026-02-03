@@ -13,5 +13,4 @@ Route::prefix('api')->group(function () {
     });
 });
 
-Route::get('/trips', [TripController::class, 'index']);
-Route::get('/map', [TripController::class, 'map']);
+Route::get('/', [TripController::class, 'index']);
