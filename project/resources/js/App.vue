@@ -63,7 +63,7 @@ const tableData = computed(() => directionStore.legs.length <= 0 ? [] :
             />
         </div>
         <TripCard />
-        <MapRoute api-key="AIzaSyBoQsKqiMJhllqGjArSU-G_nBWHLD2B71A" encoded-polyline="" />
+        <MapRoute />
         <BaseTable :columns="tableColumns" :rows="tableData" />
     </div>
 </template>

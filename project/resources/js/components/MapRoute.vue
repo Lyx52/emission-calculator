@@ -7,10 +7,6 @@ import { ref, onMounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import {useDirectionStore} from "../stores/directionStore.js";
 
-const props = defineProps({
-    apiKey: { type: String, required: true }
-});
-
 const mapRef = ref(null);
 const directionStore = useDirectionStore();
 const { polyline, points } = storeToRefs(directionStore);
