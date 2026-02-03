@@ -1,7 +1,7 @@
 FROM php:8.3.22-fpm-bullseye
 
 ARG COMPOSER_VERSION=2.8.6
-ENV NODE_VERSION=18.19.0
+ENV NODE_VERSION=20.20.0
 ARG CRON_LOG_DIRECTORY=/var/log/cron
 ARG PROJECT_DIRECTORY=/srv/www
 
@@ -89,8 +89,8 @@ COPY --chown=www-data:www-data ./project/storage ${PROJECT_DIRECTORY}/repo_stora
 RUN composer install
 RUN composer dump-autoload
 
-RUN yarn install --immutable
-RUN yarn build
+RUN npm install
+RUN npm run build
 
 RUN rm -f ${PROJECT_DIRECTORY}/public/hot
 

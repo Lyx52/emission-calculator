@@ -1,7 +1,7 @@
 FROM php:8.3.22-fpm-bullseye
 
 ARG COMPOSER_VERSION=2.8.6
-ENV NODE_VERSION=18.19.0
+ENV NODE_VERSION=20.20.0
 
 WORKDIR /srv/www
 
@@ -40,8 +40,6 @@ RUN apt-get update && apt-get -y install \
 RUN curl -L https://github.com/axllent/mailpit/releases/latest/download/mailpit-linux-amd64 \
     -o /usr/local/bin/mailpit && \
     chmod +x /usr/local/bin/mailpit
-
-
 
 # Install PHP Extensions:
 RUN docker-php-ext-install -j$(nproc) \
