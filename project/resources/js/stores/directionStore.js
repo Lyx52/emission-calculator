@@ -5,15 +5,17 @@ export const useDirectionStore = defineStore('direction', {
         waypoints: [],
         points: [],
         legs: [],
-        polyline: null,
-        directions: null,
+        polylines: [],
         loading: false,
         error: null
     }),
     actions: {
         async fetch(tripId) {
             if (!tripId) {
-                this.directions = null;
+                this.waypoints = [];
+                this.legs = [];
+                this.points = [];
+                this.polylines = [];
                 return
             }
 
@@ -26,9 +28,9 @@ export const useDirectionStore = defineStore('direction', {
                 if (response.error) {
                     this.error = response.error;
                 } else {
-                    const route = response?.routes?.length <= 0 ? null : response.routes[0];
-                    this.polyline = route?.overview_polyline?.points;
-                    this.legs = route?.legs ?? [];
+                    this.waypoints = response?.waypoints ?? [];
+                    this.legs = response?.legs ?? [];
+
                     this.points = [];
                     if (this.legs.length) {
                         this.points.push(this.legs[0].start_location);
@@ -37,6 +39,8 @@ export const useDirectionStore = defineStore('direction', {
                             this.points.push(leg.end_location);
                         });
                     }
+
+                    this.polylines = response.polylines?.map(path => google.maps.geometry.encoding.decodePath(path)) ?? [];
                 }
             } catch (err) {
                 this.error = 'Failed to fetch trip directions'

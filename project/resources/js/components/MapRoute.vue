@@ -8,12 +8,12 @@ import { storeToRefs } from 'pinia';
 import {useDirectionStore} from "../stores/directionStore.js";
 
 const mapRef = ref(null);
-const directionStore = useDirectionStore();
-const { polyline, points } = storeToRefs(directionStore);
-
 let map = null;
-let polylinePath = null;
 let markers = [];
+let lines = [];
+
+const directionStore = useDirectionStore();
+const { polylines, points } = storeToRefs(directionStore);
 
 const initMap = () => {
     map = new google.maps.Map(mapRef.value, {
@@ -22,63 +22,62 @@ const initMap = () => {
     });
 };
 
-const drawRoute = (encodedString) => {
-    if (!encodedString || !window.google) {
-        if (polylinePath) polylinePath.setMap(null);
-        return;
-    }
-
-    if (polylinePath) polylinePath.setMap(null);
-
-    const path = google.maps.geometry.encoding.decodePath(encodedString);
-    polylinePath = new google.maps.Polyline({
-        path: path,
-        strokeColor: "#4285F4",
-        strokeWeight: 5,
-    });
-
-    polylinePath.setMap(map);
-
-    const bounds = new google.maps.LatLngBounds();
-    path.forEach(coord => bounds.extend(coord));
-    map.fitBounds(bounds);
-};
+const clearLines = () => {
+    lines.forEach(l => l.setMap(null));
+    lines = [];
+}
 
 const clearMarkers = () => {
     markers.forEach(m => m.setMap(null));
     markers = [];
 };
 
-const drawWaypoints = (coords) => {
-    clearMarkers();
-    if (!coords.length || !map) return;
-
-    coords.forEach((coord, index) => {
-        const isOrigin = index === 0;
-        const isDestination = index === coords.length - 1;
-
-        const marker = new google.maps.Marker({
-            position: coord,
-            map: map,
-            label: isOrigin ? 'A' : (isDestination ? 'B' : ''),
-            title: isOrigin ? 'Origin' : (isDestination ? 'Destination' : `Waypoint ${index}`),
-            icon: isOrigin || isDestination ? null : {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 5,
-                fillColor: "#FFFFFF",
-                fillOpacity: 1,
-                strokeWeight: 2,
-                strokeColor: "#4285F4"
-            }
-        });
-        markers.push(marker);
+const addLine = (path) => {
+    const line = new google.maps.Polyline({
+        path: path,
+        strokeColor: "#4285F4",
+        strokeWeight: 5,
     });
-};
 
-watch([polyline, points], ([newPoly, newCoords]) => {
-    if (newPoly && map) {
-        drawRoute(newPoly);
-        drawWaypoints(newCoords);
+    line.setMap(map);
+
+    lines.push(line);
+
+    const bounds = new google.maps.LatLngBounds();
+    path.forEach(coords => bounds.extend(coords));
+    map.fitBounds(bounds);
+}
+
+const addMarker = (coordinates, options) => {
+    const marker = new google.maps.Marker({
+        position: coordinates,
+        map: map,
+        icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 5,
+            fillColor: "#FFFFFF",
+            fillOpacity: 1,
+            strokeWeight: 2,
+            strokeColor: "#4285F4"
+        },
+    });
+
+    markers.push(marker);
+}
+
+watch([polylines, points], ([newPolylines, newCoordinates]) => {
+    if (!map) {
+        return;
+    }
+
+    clearLines();
+    for (const polyline of newPolylines) {
+        addLine(polyline);
+    }
+
+    clearMarkers();
+    for (const coordinates of newCoordinates) {
+        addMarker(coordinates);
     }
 }, { deep: true });
 
@@ -86,7 +85,6 @@ watch([polyline, points], ([newPoly, newCoords]) => {
 onMounted(() => {
     if (window.google) {
         initMap();
-        if (polyline.value) drawRoute(polyline.value);
     }
 });
 </script>

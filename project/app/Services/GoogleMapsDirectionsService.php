@@ -5,6 +5,7 @@ use App\Models\BusStop;
 use App\Models\BusStopTime;
 use App\Models\BusTrip;
 use App\Models\CachedStopDirections;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 
@@ -83,32 +84,54 @@ class GoogleMapsDirectionsService implements GoogleMapsDirectionsContract
             return null;
         }
         $trip->load('stopTimes.stop');
+        $response = [
+            'waypoints' => [],
+            'legs' => [],
+            'polylines' => [],
+            'status' => true,
+        ];
 
-        $from = null;
-        $to = null;
-        $waypoints = [];
+        $lastWaypoint = null;
+        /** @var Collection $stopChunk */
+        foreach ($trip->stopTimes->sortBy('stop_sequence')->pluck('stop')->chunk(25) as $stopChunk) {
+            $from = $lastWaypoint ?? $stopChunk->first();
+            $to = $stopChunk->last();
+            $waypoints = [];
+            /** @var BusStopTime $stop */
+            foreach ($stopChunk->all() as $stop) {
+                if ($from === $stop || $to === $stop) {
+                    continue;
+                }
 
-        $stops = $trip->stopTimes->sortBy('stop_sequence')->pluck('stop')->all();
-
-        /** @var BusStopTime $stop */
-        foreach ($stops as $idx => $stop) {
-            if (array_key_first($stops) === $idx) {
-                $from = $stop;
-                continue;
+                $waypoints[] = [$stop->stop_lat, $stop->stop_lon];
             }
 
-            if (array_key_last($stops) === $idx) {
-                $to = $stop;
-                continue;
+            $result = $this->getDirections([$from->stop_lat, $from->stop_lon], [$to->stop_lat, $to->stop_lon], $waypoints);
+            $route = end($result['routes']);
+            if (empty($route)) {
+                $response['status'] = false;
+                break;
             }
 
-            $waypoints[] = $stop;
+            $response = [
+                'waypoints' => [
+                    ...$response['waypoints'],
+                    ...$result['geocoded_waypoints'] ?? [],
+                ],
+                'legs' => [
+                    ...$response['legs'],
+                    ...$route['legs'] ?? []
+                ],
+                'polylines' => [
+                    ...$response['polylines'],
+                    $route['overview_polyline']['points'],
+                ],
+                'status' => $response['status'] && ($result['status'] === 'OK'),
+            ];
+            $lastWaypoint = $to;
         }
 
-        $waypoints = array_map(fn($waypoint) => [$waypoint->stop_lat, $waypoint->stop_lon], $waypoints);
-        $response = $this->getDirections([$from->stop_lat, $from->stop_lon], [$to->stop_lat, $to->stop_lon], $waypoints);
-
-        if ($response['status'] == 'OK') {
+        if ($response['status']) {
             return CachedStopDirections::create([
                 'trip_id' => $tripId,
                 'response' => $response,
